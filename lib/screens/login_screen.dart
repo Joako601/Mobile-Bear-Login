@@ -30,6 +30,58 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
+  //4.1 Controllers para manipular lo que escribe el usuario
+  final emailCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
+
+  //4.2 Errores para mostrar en la UI
+  String? emailError;
+  String? passError;
+
+  // 4.3 Validadores
+  bool isValidEmail(String email) {
+    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    return re.hasMatch(email);
+  }
+
+  bool isValidPassword(String pass) {
+    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
+    final re = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
+    );
+    return re.hasMatch(pass);
+  }
+
+  // 4.4 Accion del boton
+  void _onLogin() {
+    //Recortar espacios en blanco accidentales
+    final email = emailCtrl.text.trim();
+    final pass = passCtrl.text;
+
+    //recalcular errores
+    final emailTypedError = isValidEmail(email) ? null : 'Email inválido';
+    final passTypedError = isValidEmail(email) ? null : 'Password inválido';
+
+    //4.5 Para mostrar el cambio
+    setState(() {
+      emailError = emailTypedError;
+      passError = passTypedError;
+    });
+
+    //4.6 Cerrar el teclado y oso neutro
+    FocusScope.of(context).unfocus();
+    _typingDebounce?.cancel();
+    _isChecking?.change(false);
+    _isHandsUp?.change(false);
+    _numLook?.value = 50.0;
+
+    if (emailTypedError == null && passTypedError == null) {
+      _trigSuccess?.fire();
+    } else {
+      _trigFail?.fire();
+    }
+  }
+
   //2.2 Crear los oyentes (listener)
   @override
   void initState() {
@@ -78,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       //agregar el controlador al escenario
                       artboard.addController(_controller!);
                       //1.4 vincular las variables
-                      _isChecking = _controller!.findSMI('isCheking');
+                      _isChecking = _controller!.findSMI('isChecking');
                       _isHandsUp = _controller!.findSMI('isHandsUp');
                       _trigSuccess = _controller!.findSMI('trigSuccess');
                       _trigFail = _controller!.findSMI('trigFail');
@@ -90,6 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 10),
                 // Emial
                 TextField(
+                  //4.8 Vincular el controller
+                  controller: emailCtrl,
                   //2.3 asignar el focus al textfield
                   focusNode: _emailFocus,
                   onChanged: (value) {
@@ -102,8 +156,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     //3.4 implementar recorrido de mirada
                     //ajustes de limites del 0 al 100
                     //80 medida de calibracion. Clamp es un ranfo
-                    final look =
-                        (value.length / 80.0 * 100.0.clamp(0.0, 100.0));
+                    final look = (value.length / 80.0 * 100.0)
+                        .clamp(0.0, 100.0)
+                        .toDouble();
                     _numLook?.value = look;
 
                     //3.5 debounce: si vuelve a teclear, reinicia el contador
@@ -117,6 +172,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     });
                   },
                   decoration: InputDecoration(
+                    //4.8
+                    errorText: emailError,
                     hintText: "Email",
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
@@ -128,6 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 //Contrasena
                 TextField(
+                  //4.8 Vincular el controller
+                  controller: passCtrl,
                   //2.3 asignar el focus al textfield
                   focusNode: _passwordFocus,
                   onChanged: (value) {
@@ -140,6 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   obscureText: _isObscure,
                   decoration: InputDecoration(
+                    //4.9 mostrar el error
+                    errorText: passError,
                     hintText: "Password",
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
@@ -158,6 +219,51 @@ class _LoginScreenState extends State<LoginScreen> {
                       //Para redondear los bordes
                       borderRadius: BorderRadius.circular(12),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: screenSize.width,
+                  child: const Text(
+                    "Forgot password?",
+                    textAlign: TextAlign.right,
+                    style: TextStyle(decoration: TextDecoration.underline),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                MaterialButton(
+                  //toma todo el ancho posible
+                  minWidth: screenSize.width,
+                  height: 50,
+                  color: Colors.pink,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onPressed: _onLogin,
+                  child: Text(
+                    "Login",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: screenSize.width,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Don't have an account?"),
+                      TextButton(
+                        onPressed: () {},
+                        child: Text(
+                          "Register",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
