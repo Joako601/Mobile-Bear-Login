@@ -1,6 +1,8 @@
 import 'dart:async'; //3.1 importar el timer
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:login_rive_animation/screens/products_screen.dart';
 import 'package:rive/rive.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,6 +14,9 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isObscure = true;
+
+  //5.2 Estado de carga mientras Firebase responde
+  bool _isLoading = false;
 
   //1.1 Maquina de estados / cerebro de las animaciones
   StateMachineController? _controller;
@@ -53,7 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // 4.4 Accion del boton
-  void _onLogin() {
+  //5.3 async para poder esperar la respuesta de Firebase
+  Future<void> _onLogin() async {
     //Recortar espacios en blanco accidentales
     final email = emailCtrl.text.trim();
     final pass = passCtrl.text;
@@ -75,11 +81,59 @@ class _LoginScreenState extends State<LoginScreen> {
     _isHandsUp?.change(false);
     _numLook?.value = 50.0;
 
-    if (emailTypedError == null && passTypedError == null) {
-      _trigSuccess?.fire();
-    } else {
+    //4.9 Si no cumple las expresiones regulares, falla sin llamar a Firebase
+    if (emailTypedError != null || passTypedError != null) {
       _trigFail?.fire();
+      return;
     }
+
+    //5.4 Mostrar el indicador de carga
+    setState(() => _isLoading = true);
+
+    try {
+      //5.5 Solo para demostracion: deja ver el indicador de carga
+      await Future.delayed(const Duration(seconds: 2));
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      //5.6 Exito: el oso celebra y se espera a que termine la animacion
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _trigSuccess?.fire();
+      await Future.delayed(const Duration(seconds: 2));
+
+      //5.7 Navegar a productos sin poder regresar al login
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProductsScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      //5.8 Error: mensaje generico (OWASP), sin marcar ningun campo
+      // ni revelar si fallo el correo o la contrasena
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _trigFail?.fire();
+      _showLoginError(
+        e.code == 'network-request-failed'
+            ? 'Sin conexión. Intenta de nuevo.'
+            : 'Correo o contraseña incorrectos',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _trigFail?.fire();
+      _showLoginError('No se pudo iniciar sesión. Intenta de nuevo.');
+    }
+  }
+
+  //5.8 Mensaje general que no esta ligado a ningun campo
+  void _showLoginError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   //2.2 Crear los oyentes (listener)
@@ -239,11 +293,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed: _onLogin,
-                  child: Text(
-                    "Login",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+                  //Evita enviar el login dos veces mientras carga
+                  onPressed: _isLoading ? null : _onLogin,
+                  disabledColor: Colors.pink,
+                  //5.9 Indicador de carga o texto segun el estado
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Text(
+                          "Login",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -278,6 +344,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailFocus.dispose();
     _passwordFocus.dispose();
+    emailCtrl.dispose();
+    passCtrl.dispose();
     //3. 5 liberar timer
     _typingDebounce?.cancel();
     super.dispose();
