@@ -15,7 +15,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
   // - Chrome / iOS simulator: http://localhost:8090
   // - Emulador Android: http://10.0.2.2:8090
   // - Celular fisico: IP local de la computadora (misma red Wi-Fi)
-  static const String baseUrl = 'http://192.168.1.69:8090';
+  // Se puede cambiar sin tocar el codigo:
+  //   flutter run --dart-define=API_BASE_URL=http://192.168.X.X:8090
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.1.71:8090',
+  );
 
   // Se guarda el Future para no repetir la peticion en cada rebuild
   late final Future<List<dynamic>> _productsFuture;
