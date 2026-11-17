@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     //recalcular errores
     final emailTypedError = isValidEmail(email) ? null : 'Email inválido';
-    final passTypedError = isValidEmail(email) ? null : 'Password inválido';
+    final passTypedError = isValidPassword(pass) ? null : 'Password inválido';
 
     //4.5 Para mostrar el cambio
     setState(() {
